@@ -90,7 +90,7 @@ class TypekitDownloader():
                 os.makedirs(fontFolder)
         
         
-        for i,block in enumerate(fontfaces):
+        for i, block in enumerate(fontfaces):
             dump = self.fontfaceFolder + '/' + 'dump' + str(i) +'.tmp'
             open(dump, 'w+').write(base64.b64decode(block.group(3)))
             font = fontforge.open(dump)
