@@ -2,7 +2,10 @@
 #encoding: utf-8
 
 from urllib2 import *
-import fontforge
+try:
+    import fontforge
+except ImportError:
+    raise Exception, "Este script requiere el módulo fontforge para funcionar."
 
 
 HELP_MESSAGE = '''
