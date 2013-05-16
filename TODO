@@ -1,0 +1,4 @@
+typekit-dl TODO list.
+
+-Add option to just download the css containing the typeface coded in base64.
+-Add option to just exrtact the typeface in ttf format.
