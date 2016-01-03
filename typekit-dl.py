@@ -2,6 +2,7 @@
 #encoding: utf-8
 
 from urllib2 import *
+import json
 try:
     import fontforge
 except ImportError:
@@ -30,6 +31,10 @@ Ejemplo:
 ~$ ./typekit-dl.py https://typekit.com/fonts/myriad-pro /home/jorge/Myriad
 '''
 
+pattTokenFileUrl = 'browse-[abcdef\d]{32}\.js' # https://typekit.com/assets/browse-e4975a1e94a128f286a8d39206ae7d21.js
+pattToken = '[abcdef\d]{234}'
+pattFontInfoJson = 'familyDetailView.update\((.+)\)'
+baseUrl = 'https://use.typekit.net/dp/tk/%s/%s/%s.otf?%s'
 
 
 class DownloaderError(Exception):
@@ -46,110 +51,102 @@ class TypekitDownloader():
         if not match:
             raise DownloaderError('\nLa dirección no es valida.')
 
-        self.fontName = match.group(2)
-
         self.response = urlopen(typekitUrl)
         if self.response.code != 200:
             raise DownloaderError('\nError al conectar con Typekit: %d' % self.response.code)
 
         html = self.response.read()
-        pattCss = 'TypekitPreview\._loadInternal\("(\w+)","(.+)","(\w+)",'
 
-        parameters = re.search(pattCss, html)
+        fontInfoJson = re.search(pattFontInfoJson, html).group(1)
+        self.fontInfo = json.loads(fontInfoJson)
+        self.fontName = self.fontInfo['name']
+        self.fontSlug = self.fontInfo['slug']
+        self.fontInfo = self.fontInfo['fonts']
 
-        self.fontfaceUrl = 'https://use.typekit.net/c/' + parameters.group(1) + '/' + \
-            parameters.group(2) + '/d?' + parameters.group(3)
+        tokenFileUrl = re.search(pattTokenFileUrl, html).group()
+        tokenFile = urlopen('https://typekit.com/assets/' + tokenFileUrl).read()
+        self.token = re.search(pattToken, tokenFile).group()
 
-    
-    def CssDownload(self, destinationFolder = False):
+    def fontDownloader(self, destinationFolder = False):
 
-        if destinationFolder:
-            self.fontfaceFolder = destinationFolder
-        else:
-            self.fontfaceFolder = self.fontName
+      if destinationFolder:
+        self.fontfaceFolder = destinationFolder
+      else:
+        self.fontfaceFolder = self.fontName
+
+
+      fontsFolder = self.fontfaceFolder + '/' + 'fonts'
+      if not os.path.exists(fontsFolder):
+        os.makedirs(fontsFolder)
+
+      css = self.fontfaceFolder + '/' + self.fontName + '.css'  
+      opener = build_opener()
+      opener.addheaders = {('Referer', self.typekitUrl)}
+
+
+      for item in self.fontInfo:
+
+        alias = item['preview']['alias']
+        fvd = item['preview']['fvd']
+        subset = item['preview']['subset']
+
+        fontUrl = baseUrl % (alias, fvd, subset, self.token)
+        print fontUrl
         
-        if not os.path.exists(self.fontfaceFolder):
-            os.makedirs(self.fontfaceFolder)
+        otf = opener.open(fontUrl).read()
 
-        self.cssFile = self.fontfaceFolder + '/' + self.fontName + "-typekit" + '.css'
+        dump = fontsFolder + '/' + self.fontSlug +'-'+ item['name'].lower() + '.font'
+        open(dump,'w+').write(otf)
 
-        opener = build_opener()
-        opener.addheaders = {('Referer', self.typekitUrl)}
-        css = opener.open(self.fontfaceUrl).read()
-
-        open(self.cssFile,'w+').write(css)
-
-    def FontExtractor(self):
+        fontfactory = fontforge.open(dump, 1)
+        fontfactory.fontname = self.fontName.replace(" ", "") + item["name"].replace(" ", "")
+        fontfactory.familyname = self.fontName
+        fontfactory.fullname = self.fontName + ' ' + item["name"]
         extensions = ['.eot', '.ttf', '.otf', '.svg', '.woff']
-         
-        css = open(self.cssFile, 'r').read()
+        for ext in extensions:
 
-        pattFontface = "@font-face \{\n?font-family:\"(font-file-\d+)\";\n?(src:url\(data:font/opentype;base64,(.+)\);)\n?font-style:(\w+);\n?font-weight:(\d+);\n?\}"   
-
-        fontfaces = re.finditer(pattFontface, css)
-
-        fontFolder = self.fontfaceFolder + '/' + 'fonts'
-        if not os.path.exists(fontFolder):
-                os.makedirs(fontFolder)
+          fontfactory.generate(fontsFolder + '/' + fontfactory.fullname + ext)
         
-        
-        for i, block in enumerate(fontfaces):
-            dump = self.fontfaceFolder + '/' + 'dump' + str(i) +'.tmp'
-            open(dump, 'w+').write(base64.b64decode(block.group(3)))
-            font = fontforge.open(dump)
-            
-            print "Extrayendo %s." % (font.fontname)
+        try:
+          os.remove(dump)
+          # for some reason, probably an error during conversion, an .afm file in created
+          # the code bellow removes the .afm file if it does exists.
+          os.remove(fontsFolder + '/' + fontfactory.fullname + '.afm')
+        except:
+          pass
 
-            for ext in extensions:
-                f = fontFolder + '/' + font.fontname + ext
-                font.generate(f)
+        template = "@font-face {\
+          \n\tfont-family: '" + fontfactory.fullname + "';\
+          \n\tsrc: url('fonts/" + fontfactory.fullname + ".eot');\
+          \n\tsrc: url('fonts/" + fontfactory.fullname + ".eot?#iefix') format('embedded-opentype'),\
+          \n\turl('fonts/" + fontfactory.fullname + ".woff') format('woff'),\
+          \n\turl('fonts/" + fontfactory.fullname + ".ttf') format('truetype'),\
+          \n\turl('fonts/" + fontfactory.fullname + ".svg#ywftsvg') format('svg');\
+          \n\tfont-style: normal;\
+          \n\tfont-weight: normal;\
+          \n}\n\n"
 
-            template = "@font-face {\
-            \n\tfont-family: '" + font.fontname + "';\
-            \n\tsrc: url('/fonts/" + font.fontname + ".eot');\
-            \n\tsrc: url('/fonts/" + font.fontname + ".eot?#iefix') format('embedded-opentype'),\
-            \n\turl('/fonts/" + font.fontname + ".woff') format('woff'),\
-            \n\turl('/fonts/" + font.fontname + ".ttf') format('truetype'),\
-            \n\turl('/fonts/" + font.fontname + ".svg#ywftsvg') format('svg');\
-            \n\tfont-style:" + block.group(4) + ";\
-            \n\tfont-weight:" + block.group(5) + ";\
-            \n}\n\n"
-            
-            css = self.fontfaceFolder + '/' + self.fontName + '.css'
-
-            open(css, 'a').writelines(template)
-
-            os.remove(dump)
-            
-            # for some reason, probably an error during conversion, an .afm file in created
-            # the code bellow removes the .afm file if it does exists.
-            try:
-                os.remove(fontFolder + '/' + font.fontname + '.afm')
-            except:
-                pass
-
+        open(css, 'a').writelines(template)
 
 if __name__ == '__main__':
-    args = sys.argv
+  args = sys.argv
 
-    if len(args) == 1:
+  if len(args) == 1:
         
-        print HELP_MESSAGE
-        exit()
+    print HELP_MESSAGE
+    exit()
 
-    try:
-        downloader = TypekitDownloader(args[1])
+  try:
+    downloader = TypekitDownloader(args[1])
 
-        if len(args) == 3:
-            destinationFolder = args[2]
-        else:
-            destinationFolder = False
+    if len(args) == 3:
+      destinationFolder = args[2]
+    else:
+      destinationFolder = False
 
-        downloader.CssDownload(destinationFolder)
-        print "Archivo %s descargado con éxito.\n" % (downloader.fontName + "-typekit" + '.css')
-        downloader.FontExtractor()
-        print "\nOperación completada con éxito."
-        exit()
-    except DownloaderError as error:
-        print "\nError: %s\n" % error.msg
-        exit(1)
+      downloader.fontDownloader()
+      print "\nOperación completada con éxito."
+  except DownloaderError as error:
+    print "\nError: %s\n" % error.msg
+    print "Por favor, abra una issue en https://github.com/jorgegarciadev/typekit-dl/issues"
+    exit(1)
