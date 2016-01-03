@@ -38,10 +38,11 @@ The script downloads the css containing the typografy coded on base64. Then extr
 
 Usage:
 
-<pre>~$ ./ImgurDownloader.py [album URL] [destination folder]</pre>
+<pre>~$ ./typekit-dl.py [URL de la tipografía] [Ruta a carpeta de destino]</pre>
 
 Example:
 
-<pre>~$ ./ImgurDownloader.py http://imgur.com/a/LXS9b /home/jorge/fotos</pre>
+<pre>~$ ./typekit-dl.py https://typekit.com/fonts/myriad-pro /home/jorge/Myriad</pre>
+
 
 This software is publised under [MIT license](http://opensource.org/licenses/MIT).
