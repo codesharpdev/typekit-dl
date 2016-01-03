@@ -1,4 +1,6 @@
-##typekit-dl
+Please, If the script is broken consider opening an issue to let me know it doesn't work, I will fix it as soon as I can.
+
+##typekit-dl (updated on 2016/01/03)
 
 ###ESPAÑOL
 
