@@ -4,7 +4,7 @@ Please, If the script is broken consider opening an issue to let me know it does
 
 ###ESPAÑOL
 
-tipekit-dl es un script en Python para descargar tipografías de Typekit.com.
+typekit-dl es un script en Python para descargar tipografías de Typekit.com.
 
 Para funcionar correctamente necesita Fontforge y su módulo para Python
 (http://fontforge.org/python.html). En Ubuntu/Debian el módulo puede instalarse con:
@@ -28,7 +28,7 @@ Este software está publicado bajo [licencia MIT](http://opensource.org/licenses
 
 ###ENGLISH
 
-tipekit-dl is a Python script for downloading typefaces from Typekit.com
+typekit-dl is a Python script for downloading typefaces from Typekit.com
 
 It needs Fontforge and its Python module (http://fontforge.org/python.html) for working correctly. You can install the module on Ubuntu/Debian with:
 
